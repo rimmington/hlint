@@ -19,7 +19,7 @@ module Language.Haskell.HLint3(
     -- * Settings
     Classify(..),
     getHLintDataDir, autoSettings, argsSettings,
-    findSettings, readSettingsFile,
+    findSettings, readSettingsFile, loadSettings,
     -- * Hints
     HintBuiltin(..), HintRule(..),
     Hint(..), resolveHints,
@@ -104,7 +104,17 @@ readSettingsFile dir x
 findSettings :: (String -> IO (FilePath, Maybe String)) -> Maybe String -> IO ([Fixity], [Classify], [Either HintBuiltin HintRule])
 findSettings load start = do
     (file,contents) <- load $ fromMaybe "hlint.yaml" start
-    xs <- readFilesConfig [(file,contents)]
+    loadSettings' [(file, contents)]
+
+
+-- | Load information from the contents of a number of settings files.
+loadSettings :: [(FilePath, String)] -> IO ([Fixity], [Classify], [Either HintBuiltin HintRule])
+loadSettings cs = loadSettings' $ fmap Just <$> cs
+
+
+loadSettings' :: [(FilePath, Maybe String)] -> IO ([Fixity], [Classify], [Either HintBuiltin HintRule])
+loadSettings' cs = do
+    xs <- readFilesConfig cs
     return ([x | Infix x <- xs]
            ,[x | SettingClassify x <- xs]
            ,[Right x | SettingMatchExp x <- xs] ++ map Left [minBound..maxBound])
